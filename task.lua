@@ -36,7 +36,7 @@ local isAwaiter = function(awaiter)
         return false
     end
 
-    if awaiter.OnCompleted == nil or "function" ~= type(awaiter.OnCompleted) then
+    if awaiter.onCompleted == nil or "function" ~= type(awaiter.onCompleted) then
         return false
     end
     return true
@@ -120,7 +120,7 @@ local taskWhenAny = function(...)
             if v.isCompleted then
                 task:done()
             else
-                v:OnCompleted(done)
+                v:onCompleted(done)
             end
         end
     end
@@ -150,7 +150,7 @@ local taskWhenAll = function(...)
             if v.isCompleted then
                 done()
             else
-                v:OnCompleted(done)
+                v:onCompleted(done)
             end
         end
     end
