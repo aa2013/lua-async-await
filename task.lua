@@ -91,7 +91,7 @@ local await = function(awaiter)
         if awaiter.isCompleted then
             continuation(awaiter.result)
         else
-            awaiter:OnCompleted(continuation)
+            awaiter:onCompleted(continuation)
         end
     end)
 end
