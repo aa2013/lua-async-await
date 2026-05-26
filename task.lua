@@ -10,12 +10,16 @@ local getAwaiter = function()
     local task = {
         isCompleted = false,
         onCompletedList = {},
-        result = nil
+        result = nil,
     };
 
     function task:onCompleted(fun)
         if isFunction(fun) then
-            table.insert(self.onCompletedList, fun)
+            if self.isCompleted then
+                fun(self.result)
+            else
+                table.insert(self.onCompletedList, fun)
+            end
         end
     end
 
@@ -25,7 +29,10 @@ local getAwaiter = function()
         end
         self.isCompleted = true;
         for i, v in ipairs(self.onCompletedList) do
-            pcall(v, self.result)
+            local ok, err = pcall(v, self.result)
+            if not ok then
+                error(err)
+            end
         end
     end
     return task;
@@ -56,6 +63,11 @@ local async = function(fun)
         local awaiter = getAwaiter()
         next = function(...)
             local state, moveNext = co.resume(thread, ...)
+            if not state then
+                awaiter.error = moveNext
+                awaiter:done()
+                return
+            end
             if "dead" ~= co.status(thread) then
                 if isFunction(moveNext) then
                     moveNext(next)
@@ -84,16 +96,25 @@ local await = function(awaiter)
     end
 
     if awaiter.isCompleted == nil or awaiter.isCompleted then
+        if awaiter.error ~= nil then
+            error(awaiter.error, 0)
+        end
         return awaiter.result
     end
 
-    return co.yield(function(continuation)
+    local ok, value = co.yield(function(continuation)
         if awaiter.isCompleted then
-            continuation(awaiter.result)
+            continuation(awaiter.error == nil, awaiter.error or awaiter.result)
         else
-            awaiter:onCompleted(continuation)
+            awaiter:onCompleted(function()
+                continuation(awaiter.error == nil, awaiter.error or awaiter.result)
+            end)
         end
     end)
+    if not ok then
+        error(value, 0)
+    end
+    return value
 end
 
 local asyncWrapper = function(fun, ...)
